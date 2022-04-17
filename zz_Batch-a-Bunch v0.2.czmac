@@ -1,0 +1,203 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Script>
+  <Context>Zen26</Context>
+  <Version>1.0</Version>
+  <Language>Python</Language>
+  <Text>#################################################
+########       Batch-a-Bunch v0.2       #########
+######## Dan Stevens, Carl Zeiss Canada #########
+#################################################
+
+### Generates a user configurable list of image analysis procedures that can be implemented to batch process all the files in a single folder
+#Zen.Application.Documents.RemoveAll(False)
+
+
+########################
+### Libraries
+########################
+from System.IO import File, Directory, FileInfo, Path
+import os
+#userProfile = os.path.expanduser('~')
+userProfile = "d:\zeiss"
+
+########################
+### Processing Functions
+########################
+
+
+def parameterPath(selection):
+    if selection == "Stitching":
+        parameterPath = userProfile + r"\Documents\Carl Zeiss\ZEN\Documents\Processing Settings\Stitching"
+    if selection == "Background Subtraction":
+        parameterPath = userProfile + r"\Documents\Carl Zeiss\ZEN\Documents\Processing Settings\BackgroundSubtraction"
+    if selection == "Gauss Filter":
+        parameterPath = userProfile + r"\Documents\Carl Zeiss\ZEN\Documents\Processing Settings\Gauss"
+    if selection == "Pixel Type":
+        parameterPath = userProfile + r"\Documents\Carl Zeiss\ZEN\Documents\Processing Settings\ChangePixelType"
+    if selection == "Erode":
+        parameterPath = userProfile + r"\Documents\Carl Zeiss\ZEN\Documents\Processing Settings\Erode"
+    if selection == "Sobel":
+        parameterPath = userProfile + r"\Documents\Carl Zeiss\ZEN\Documents\Processing Settings\Sobel"
+    if selection == "Subset":
+        parameterPath = userProfile + r"\Documents\Carl Zeiss\ZEN\Documents\Processing Settings\CreateSubsetKeepStructure"
+    #print parameterPath
+    parameterFiles = os.listdir(parameterPath)
+    return parameterPath, parameterFiles
+    
+
+def noFunction(inputImage):
+    outputImage = inputImage
+    return outputImage
+
+def stitchImage(inputImage, processList):
+    setting = Zen.Processing.Transformation.Settings.StitchingSetting()
+    setting.Load(processList[3], ZenSettingDirectory.User)
+    outputImage = Zen.Processing.Transformation.Geometric.Stitching(inputImage, inputImage, setting, False)
+    return outputImage
+
+def backSubtract(inputImage, processList):
+    setting = Zen.Processing.Adjust.Settings.BackgroundSubtractionSetting()
+    setting.Load(processList[3], ZenSettingDirectory.User)
+    outputImage = Zen.Processing.Adjust.BackgroundSubtraction(inputImage, setting, False)
+    return outputImage
+
+def gaussFilter(inputImage, processList):
+    setting = Zen.Processing.Filter.Settings.GaussSetting()
+    setting.Load(processList[3], ZenSettingDirectory.User)
+    outputImage = Zen.Processing.Filter.Smooth.Gauss(inputImage, setting, False)
+    return outputImage
+
+def pixelType(inputImage, processList):
+    setting = Zen.Processing.Utilities.Settings.ChangePixelTypeSetting()
+    setting.Load(processList[3], ZenSettingDirectory.User)
+    outputImage = Zen.Processing.Utilities.ChangePixelType(inputImage, False)
+    return outputImage
+    
+def morphologyErode(inputImage, processList):
+    setting = Zen.Processing.Morphology.Settings.ErodeSetting()
+    setting.Load(processList[3], ZenSettingDirectory.User)
+    outputImage = Zen.Processing.Morphology.Erode(inputImage, False)
+    return outputImage
+
+def edgesSobel(inputImage, processList):
+    setting = Zen.Processing.Filter.Settings.SobelSetting()
+    setting.Load(processList[3], ZenSettingDirectory.User)
+    outputImage = Zen.Processing.Filter.Edges.Sobel(inputImage,False)
+    return outputImage
+
+def subset(inputImage, processList):
+    setting = Zen.Processing.Utilities.Settings.CreateSubsetSetting()
+    setting.Load(processList[3], ZenSettingDirectory.User)
+    outputImage = Zen.Processing.Utilities.CreateSubset(inputImage,setting,False)
+    return outputImage
+    
+########################
+### Variables
+########################
+
+processList = ["None", "Stitching", "Background Subtraction", "Gauss Filter", "Pixel Type", "Erode", "Sobel", "Subset"]
+functionList = [noFunction, stitchImage, backSubtract, gaussFilter, pixelType, morphologyErode, edgesSobel, subset]
+processDict = {}
+
+
+###########
+### FIRST GUI
+###########
+
+mainGUI = Zen.Windows.CreateWindow()
+mainGUI.AddFolderBrowser("sourceFolder", "Source Folder",userProfile + r"\Desktop\Batch-a-Bunch")
+mainGUI.AddDropDown("select1", "Step One", processList, 1)
+mainGUI.AddDropDown("select2", "Step Two", processList, 1)
+mainGUI.AddDropDown("select3", "Step Three", processList, 1)
+mainGUI.AddDropDown("select4", "Step Four", processList, 1)
+guiResults = mainGUI.Show()
+
+sourceFolder = guiResults.GetValue("sourceFolder")
+
+selection1 = [guiResults.GetValue("select1")]
+selection2 = [guiResults.GetValue("select2")]
+selection3 = [guiResults.GetValue("select3")]
+selection4 = [guiResults.GetValue("select4")]
+
+processDict.Add(1,[selection1])
+processDict.Add(2,[selection2])
+processDict.Add(3,[selection3])
+processDict.Add(4,[selection4])
+
+for key in processDict:
+    if str(processDict[key][0]).strip(r"['']") != "None":
+    #temp = str(selection[0]).strip(r"['']")
+        #currentRow = proTable.RowCount
+        #proTable.SetValue(currentRow,0,processDict.Keys[key])
+        paramPath, paramFiles = parameterPath(str(processDict[key][0]).strip(r"['']"))
+        processDict[key].append(paramPath)
+        processDict[key].append(paramFiles)
+        print str(key) + " " + str(processDict[key][0]) + " " + str(processDict[key][1]) + " " + str(processDict[key][2]) 
+
+
+###########
+### SECOND GUI
+###########
+
+paramGUI = Zen.Windows.CreateWindow()
+#paramGUI.AddFolderBrowser("sourceFolder", "Source Folder",userProfile + r"\Desktop\Batch-a-Bunch")
+
+if str(processDict[1][0]).strip(r"['']") != "None":
+    paramGUI.AddDropDown("param1", "Step One - " + str(processDict[1][0]), processDict[1][2], 0)
+if str(processDict[2][0]).strip(r"['']") != "None":
+    paramGUI.AddDropDown("param2", "Step Two - " + str(processDict[2][0]), processDict[2][2], 0)
+if str(processDict[3][0]).strip(r"['']") != "None":
+    paramGUI.AddDropDown("param3", "Step Three - " + str(processDict[3][0]), processDict[3][2], 0)
+if str(processDict[4][0]).strip(r"['']") != "None":
+    paramGUI.AddDropDown("param4", "Step Four - " + str(processDict[4][0]), processDict[4][2], 0)
+
+paramguiResults = paramGUI.Show()
+
+processDict[1].append(paramguiResults.GetValue("param1"))
+processDict[2].append(paramguiResults.GetValue("param2"))
+processDict[3].append(paramguiResults.GetValue("param3"))
+processDict[4].append(paramguiResults.GetValue("param4"))
+
+###########
+### Main Loop
+###########
+
+fileList = Directory.GetFiles(sourceFolder)
+for file in fileList:
+    inputImage = Zen.Application.LoadImage(file)
+    outputName =  str(inputImage.Name) + "_processed.czi"
+    outputPath = Path.Combine(sourceFolder, outputName)
+    for key in processDict:
+        if str(processDict[key][0]).strip(r"['']") != "None":
+            print "Step Number " + str(key) + " will execute function " + str(processDict[key][0]) + " with the parameters file " + str(processDict[key][3])
+            selection = str(processDict[key][0]).strip(r"['']")
+            selectionNum = processList.index(selection)
+            
+            ## Each processDict[key] entry is a list of format ["process name"(str), process param file directory (path), param files (list), selected parameter file (str)]
+            outputImage = functionList[selectionNum](inputImage, processDict[key])
+            #Zen.Application.Documents.Add(outputImage)
+            inputImage = outputImage
+    Zen.Application.Save(outputImage, outputPath, False)
+    outputImage.Close()
+
+            
+
+
+
+    
+    
+</Text>
+  <Author></Author>
+  <Description></Description>
+  <Keywords></Keywords>
+  <Row>17</Row>
+  <Column>1</Column>
+  <WatchVariables>
+    <Watch>parameterPath</Watch>
+    <Watch>selection</Watch>
+    <Watch>userProfile</Watch>
+    <Watch>processDict</Watch>
+    <Watch></Watch>
+    <Watch>key</Watch>
+  </WatchVariables>
+</Script>
